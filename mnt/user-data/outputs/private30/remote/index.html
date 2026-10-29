@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Private 30 — リモート閲覧</title>
+<style>
+:root{--bg:#02060d;--panel:rgba(8,20,34,.66);--line:rgba(0,229,255,.32);--cy:#19e3ff;--bl:#2f7bff;--gr:#2dffa0;--tx:#d8f3ff;--dim:#7ea4b8;--bad:#ff5c7a}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#02060d;--tx:#d8f3ff}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(900px 500px at 85% -10%,rgba(47,123,255,.22),transparent 60%),var(--bg);color:var(--tx);font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;backdrop-filter:blur(14px)}
+h1{font-size:19px;margin:0 0 6px}
+h2{font-size:14px;color:var(--cy);margin:0 0 8px}
+p{color:var(--dim);font-size:13.5px;margin:6px 0}
+input{width:100%;font:inherit;font-size:16px;color:var(--tx);background:rgba(25,227,255,.06);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:6px}
+button{font:inherit;color:var(--tx);background:rgba(25,227,255,.1);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;margin-top:12px}
+button.pri{background:linear-gradient(135deg,rgba(47,123,255,.55),rgba(25,227,255,.4));font-weight:600}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(25,227,255,.12);font-size:13px}
+.item{padding:12px 14px;border:1px solid rgba(25,227,255,.16);border-radius:12px;margin-top:10px}
+.item b{display:block;font-size:13px}
+.item .meta{color:var(--dim);font-size:12px;margin-top:2px}
+.item .body{margin-top:8px;font-size:15px;white-space:pre-wrap;word-break:break-word}
+.hidden{display:none!important}
+.bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="setup" class="panel">
+    <h1>Private 30 — リモート閲覧</h1>
+    <p>この画面はSMS本体を保存しません。中継サーバーにあるのは暗号文だけで、同じパスフレーズを知っている端末だけが復号できます。</p>
+    <h2>中継サーバーのURL</h2>
+    <input id="relay" placeholder="https://your-relay.onrender.com" autocomplete="off">
+    <h2 style="margin-top:14px">パスフレーズ</h2>
+    <input id="pass" type="password" placeholder="端末側と同じパスフレーズ" autocomplete="off">
+    <button id="start" class="pri">開始</button>
+    <p id="err" class="bad"></p>
+  </div>
+
+  <div id="view" class="panel hidden">
+    <div class="row"><span>状態</span><span id="st">待機中</span></div>
+    <div class="row"><span>最終同期</span><span id="upd">--:--:--</span></div>
+    <button id="stop">終了してこの画面の内容を消す</button>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+var WIN=30*60*1000, timer=null, relay="", pass="", room="";
+var $=function(id){return document.getElementById(id)};
+
+function enc(s){return new TextEncoder().encode(s)}
+function b64(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))}
+function unb64(s){var bin=atob(s),a=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a}
+function hex(buf){return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")}
+
+async function roomId(p){var d=await crypto.subtle.digest("SHA-256",enc(p+":room"));return hex(d)}
+async function deriveKey(p){
+  var base=await crypto.subtle.importKey("raw",enc(p),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt:enc("private30-v1-key"),iterations:150000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+}
+async function decrypt(p,payload){
+  var raw=unb64(payload),iv=raw.slice(0,12),ct=raw.slice(12);
+  var key=await deriveKey(p);
+  var pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,ct);
+  return new TextDecoder().decode(pt);
+}
+function mask(s){s=String(s||"");return s.length<=2?"••":s.charAt(0)+"•".repeat(Math.min(s.length-3,6))+s.slice(-2)}
+function pad(n){return String(n).padStart(2,"0")}
+function hms(t){var d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+
+async function pull(){
+  try{
+    var r=await fetch(relay+"/api/pull/"+room,{cache:"no-store"});
+    if(r.status===404){$("st").textContent="データなし（30分経過または未送信）";$("list").textContent="";return}
+    if(!r.ok){$("st").textContent="取得エラー（"+r.status+"）";return}
+    var j=await r.json();
+    var json=await decrypt(pass,j.payload);
+    var arr=JSON.parse(json);
+    var now=Date.now();
+    arr=arr.filter(function(m){return now-m.at<WIN && now-m.at>=-60000});
+    render(arr);
+    $("st").textContent="同期中";$("upd").textContent=hms(j.updatedAt);
+  }catch(e){
+    $("st").textContent="復号に失敗（パスフレーズ不一致の可能性）";
+  }
+}
+function render(arr){
+  var L=$("list");L.textContent="";
+  if(!arr.length){var p=document.createElement("p");p.textContent="直近30分のSMSはありません。";L.appendChild(p);return}
+  arr.sort(function(a,b){return b.at-a.at}).forEach(function(m){
+    var d=document.createElement("div");d.className="item";
+    var age=Math.floor((Date.now()-m.at)/60000);
+    d.innerHTML="<b></b><div class='meta'></div><div class='body'></div>";
+    d.querySelector("b").textContent=mask(m.src);
+    d.querySelector(".meta").textContent=hms(m.at)+"（"+(age<1?"1分未満":age+"分前")+"）";
+    d.querySelector(".body").textContent=m.body;
+    L.appendChild(d);
+  });
+}
+
+$("start").onclick=async function(){
+  relay=$("relay").value.trim().replace(/\/$/,"");
+  pass=$("pass").value;
+  $("err").textContent="";
+  if(!/^https:\/\//.test(relay)){$("err").textContent="中継サーバーのURLはhttps://で始まる必要があります。";return}
+  if(!pass){$("err").textContent="パスフレーズを入力してください。";return}
+  room=await roomId(pass);
+  $("setup").classList.add("hidden");$("view").classList.remove("hidden");
+  pull();timer=setInterval(pull,10000);
+};
+$("stop").onclick=function(){
+  if(timer)clearInterval(timer);
+  pass="";room="";$("list").textContent="";
+  $("view").classList.add("hidden");$("setup").classList.remove("hidden");
+  $("pass").value="";
+};
+})();
+</script>
+</body>
+</html>

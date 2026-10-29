@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>LOCAL SMS VIEWER — Private 30</title>
+<style>
+:root{--bg:#02060d;--bg2:#06121f;--panel:rgba(8,20,34,.66);--line:rgba(0,229,255,.32);--cy:#19e3ff;--bl:#2f7bff;--gr:#2dffa0;--tx:#d8f3ff;--dim:#7ea4b8;--warn:#ffb454;--bad:#ff5c7a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(900px 500px at 85% -10%,rgba(47,123,255,.22),transparent 60%),radial-gradient(700px 400px at -10% 110%,rgba(45,255,160,.12),transparent 60%),var(--bg);color:var(--tx);font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;line-height:1.6;-webkit-user-select:none;user-select:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{max-width:720px;margin:0 auto;padding:18px 16px 40px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 0 24px rgba(25,227,255,.08),inset 0 0 0 1px rgba(255,255,255,.02)}
+h1{font-size:20px;margin:0;letter-spacing:.06em;font-weight:700}
+h2{font-size:15px;margin:0 0 8px;color:var(--cy);font-weight:600}
+p{margin:6px 0;color:var(--dim);font-size:13.5px}
+.hidden{display:none!important}
+button{font:inherit;color:var(--tx);background:rgba(25,227,255,.08);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .2s,box-shadow .2s,transform .1s}
+button:hover{background:rgba(25,227,255,.16);box-shadow:0 0 14px rgba(25,227,255,.25)}
+button:active{transform:scale(.97)}
+button:focus-visible,.item:focus-visible{outline:2px solid var(--gr);outline-offset:2px}
+button.pri{background:linear-gradient(135deg,rgba(47,123,255,.55),rgba(25,227,255,.4));border-color:var(--cy);font-weight:600}
+button.dng{border-color:rgba(255,92,122,.5);color:#ffc2cc}
+button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.tag{display:inline-flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.14em;color:var(--gr)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gr);box-shadow:0 0 10px var(--gr);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.rows{display:grid;gap:8px;margin:12px 0}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border:1px solid rgba(25,227,255,.16);border-radius:10px;font-size:13.5px}
+.ok{color:var(--gr)}.ng{color:var(--bad)}.wn{color:var(--warn)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat b{display:block;font-size:30px;color:var(--cy);text-shadow:0 0 14px rgba(25,227,255,.5);font-weight:600;line-height:1.2}
+.stat span{font-size:12px;color:var(--dim)}
+.list{display:grid;gap:10px}
+.item{display:grid;grid-template-columns:1fr auto;gap:2px 12px;text-align:left;width:100%;padding:13px 14px;border-radius:12px}
+.item .src{font-weight:600;letter-spacing:.04em}
+.item .meta{color:var(--dim);font-size:12.5px;text-align:right}
+.item .pv{grid-column:1/-1;color:var(--dim);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{grid-column:1/-1;height:2px;background:rgba(25,227,255,.12);border-radius:2px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--bl),var(--gr))}
+.empty{text-align:center;padding:34px 10px;color:var(--dim);font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(0,4,10,.78);display:flex;align-items:flex-end;justify-content:center;z-index:5;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;background:#061423;animation:up .25s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+@media(min-width:640px){.modal{align-items:center}.sheet{border-radius:18px}}
+.body{margin:12px 0;padding:14px;border:1px dashed var(--line);border-radius:10px;font-size:16px;color:var(--tx);white-space:pre-wrap;word-break:break-word;min-height:56px}
+.body.mask{color:var(--dim);letter-spacing:.3em}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+label.sw{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(25,227,255,.12);font-size:14px}
+input[type=tel],input[type=password]{width:100%;font:inherit;font-size:18px;letter-spacing:.12em;color:var(--tx);background:rgba(25,227,255,.06);border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-top:6px;-webkit-user-select:text;user-select:text}
+input:focus-visible{outline:2px solid var(--gr)}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--cy)}
+.note{font-size:12.5px;color:var(--dim);border-left:2px solid var(--bl);padding-left:10px;margin:10px 0}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 起動・セットアップ・プライバシー確認 -->
+<section id="gate" class="panel">
+  <div class="tag"><span class="dot"></span>PRIVATE SESSION</div>
+  <h1 style="margin-top:8px">LOCAL SMS VIEWER — Private 30</h1>
+  <p>この端末に届いた直近30分のSMSだけを表示します。外部通信は行わず、データは保存しません。</p>
+  <div class="rows" id="gateRows"></div>
+  <h2>プライバシーについて</h2>
+  <p>SMSの本文・送信元・認証コードは、このアプリの画面メモリ上にのみ置かれ、ロック時と終了時に破棄されます。元のSMSは削除されず、通常のSMSアプリにそのまま残ります。</p>
+  <p>このアプリはインターネット権限を持ちません。ただし端末自体のロックやSMSアプリ、通知の保護は、Android本体の設定が担います。</p>
+  <div id="permBox" class="acts"><button id="permBtn" class="pri">SMSの送受信を許可</button></div>
+  <div id="telBox" class="hidden">
+    <h2>1. 電話番号にコードを送る</h2>
+    <p>この端末のSMSが届く電話番号を入力してください。6桁のコードをSMSで送ります（通信料がかかる場合があります）。</p>
+    <input id="tel" type="tel" inputmode="tel" autocomplete="off" placeholder="09012345678">
+    <div class="acts"><button id="sendBtn" class="pri">コードを送る</button></div>
+  </div>
+  <div id="codeBox" class="hidden">
+    <h2>2. 届いたコードを入力</h2>
+    <p>受信したSMSのコードを入力します。5分間有効で、3回まで試せます。</p>
+    <input id="code" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="6桁のコード">
+    <div class="acts"><button id="verifyBtn" class="pri">確認して開く</button><button id="backBtn">番号を入れ直す</button></div>
+  </div>
+  <p id="gateMsg" class="wn"></p>
+</section>
+
+<!-- ダッシュボード -->
+<section id="dash" class="hidden">
+  <div class="top">
+    <div><div class="tag"><span class="dot"></span>PRIVATE SESSION</div><h1>LAST 30 MINUTES</h1></div>
+    <div class="acts" style="margin:0">
+      <button id="bRefresh" aria-label="更新"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+      <button id="bSet" aria-label="設定"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></button>
+      <button id="bLock" class="pri" aria-label="ロック"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>ロック</button>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="panel stat"><b id="cnt">0</b><span>表示対象件数</span></div>
+    <div class="panel stat"><b id="upd" style="font-size:22px;padding-top:7px">--:--:--</b><span>最終更新時刻</span></div>
+  </div>
+  <div id="list" class="list"></div>
+</section>
+</div>
+
+<!-- SMS詳細 -->
+<div id="detail" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet panel">
+    <h2>メッセージ詳細</h2>
+    <div class="rows">
+      <div class="row"><span>送信元</span><span id="dSrc"></span></div>
+      <div class="row"><span>受信時刻</span><span id="dTime"></span></div>
+      <div class="row"><span>表示の残り時間</span><span id="dLeft" class="ok"></span></div>
+    </div>
+    <div id="dBody" class="body mask"></div>
+    <div class="acts">
+      <button id="dTogBody"></button>
+      <button id="dTogSrc"></button>
+      <button id="dCopy" class="hidden">本文をコピー</button>
+      <button id="dDismiss" class="dng">表示を終了</button>
+      <button id="dClose">閉じる</button>
+    </div>
+    <p>「表示を終了」はこの画面の一覧から外すだけで、SMS自体は削除しません。</p>
+  </div>
+</div>
+
+<!-- セキュリティ設定・診断 -->
+<div id="settings" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet panel">
+    <h2>セキュリティ設定</h2>
+    <label class="sw"><span>一覧に本文プレビューを表示</span><input type="checkbox" id="oPv"></label>
+    <label class="sw"><span>本文のコピーを許可</span><input type="checkbox" id="oCp"></label>
+    <p>いずれも既定はオフで、アプリを閉じると元に戻ります。</p>
+    <h2 style="margin-top:16px">リモート閲覧（任意）</h2>
+    <p>別の端末（パソコン・スマホ・タブレットのブラウザ）から見られるようにします。中継サーバーには暗号化したデータだけを送ります。外部に出ることに変わりはないので、必要な時だけオンにしてください。</p>
+    <div id="remoteOffBox">
+      <input id="relayUrl" type="text" placeholder="https://your-relay.onrender.com" autocomplete="off">
+      <input id="relayPass" type="password" placeholder="パスフレーズ（8文字以上）" autocomplete="off" style="margin-top:8px">
+      <div class="acts"><button id="relayStart" class="pri">リモート閲覧を開始</button></div>
+    </div>
+    <div id="remoteOnBox" class="hidden">
+      <div class="rows"><div class="row"><span>状態</span><span class="ok">同期中</span></div></div>
+      <div class="acts"><button id="relayStop" class="dng">リモート閲覧を終了</button></div>
+    </div>
+    <p id="relayMsg" class="wn"></p>
+    <h2 style="margin-top:16px">権限状態・診断</h2>
+    <div class="rows" id="diag"></div>
+    <div class="note">ロックは、SMSで送った6桁コードによる簡易確認です。リモート閲覧をオンにしている間は、暗号化したデータが中継サーバーを経由します。ロックすると中継上のデータは消去を試みます。</div>
+    <div class="acts"><button id="sClose" class="pri">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var WIN=30*60*1000, N=window.Android||null;
+var $=function(id){return document.getElementById(id)};
+var st={msgs:[],dismissed:new Set(),authed:false,perm:false,lock:false,pv:false,cp:false,upd:null,cur:null,showBody:false,showSrc:false,remoteOn:false};
+
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function pad(n){return String(n).padStart(2,"0")}
+function hms(t){var d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+function mask(s){s=String(s||"");if(s.length<=2)return "••";return s.charAt(0)+"•".repeat(Math.min(s.length-3,6))+s.slice(-2)}
+function left(m){return WIN-(Date.now()-m.at)}
+function valid(m){var a=Date.now()-m.at;return a>=-60000&&a<WIN&&!st.dismissed.has(m.id)}
+function purge(){st.msgs=st.msgs.filter(valid)}
+function fmtLeft(ms){ms=Math.max(0,ms);return Math.floor(ms/60000)+"分"+pad(Math.floor(ms/1000)%60)+"秒"}
+
+function readStatus(){
+  if(!N)return;
+  try{var s=JSON.parse(N.status());st.perm=!!s.perm;st.lock=!!s.lock;st.authed=!!s.authed}catch(e){}
+}
+
+/* 起動・権限・コード認証 */
+var sent=false;
+function renderGate(){
+  var rows=$("gateRows");rows.textContent="";
+  function r(a,b,c){var d=el("div","row");d.appendChild(el("span",null,a));d.appendChild(el("span",c,b));rows.appendChild(d)}
+  r("Android連携",N?"接続済み":"なし（ブラウザ表示）",N?"ok":"ng");
+  r("SMS送受信の権限",st.perm?"許可済み":"未許可",st.perm?"ok":"wn");
+  var ready=!!N&&st.perm;
+  $("permBox").classList.toggle("hidden",!N||st.perm);
+  $("telBox").classList.toggle("hidden",!ready||sent);
+  $("codeBox").classList.toggle("hidden",!ready||!sent);
+  if(!N)$("gateMsg").textContent="ブラウザ単体ではSMSを取得できないため、表示は行いません。";
+}
+$("permBtn").onclick=function(){if(N)N.requestPermission()};
+$("sendBtn").onclick=function(){
+  var n=$("tel").value.replace(/[\s-]/g,"");
+  if(!/^\+?\d{8,15}$/.test(n)){$("gateMsg").textContent="電話番号は数字8〜15桁で入力してください。";return}
+  $("gateMsg").textContent="送信中…";N.sendCode(n);
+};
+$("verifyBtn").onclick=function(){N.verifyCode($("code").value.trim())};
+$("backBtn").onclick=function(){sent=false;$("code").value="";$("gateMsg").textContent="";renderGate()};
+window.__onPerm=function(ok){st.perm=!!ok;renderGate();$("gateMsg").textContent=ok?"":"許可されませんでした。Androidの設定 > アプリ > 権限 から許可できます。"};
+window.__onSent=function(ok,msg){if(ok)sent=true;renderGate();$("gateMsg").textContent=msg||""};
+window.__onAuth=function(ok,msg){
+  if(ok){$("tel").value="";$("code").value="";st.authed=true;show("dash");fetchNow()}
+  else{$("code").value="";if(/送信し直/.test(msg||""))sent=false;renderGate();$("gateMsg").textContent=msg||"確認できませんでした。"}
+};
+window.__lock=function(){doLock(true)};
+window.__onSms=function(json){
+  if(!json){doLock(true);return}
+  var arr;try{arr=JSON.parse(json)}catch(e){arr=[]}
+  st.msgs=arr.map(function(x){return{id:String(x.id),src:String(x.a||""),body:String(x.b||""),at:Number(x.d)}}).filter(function(m){return isFinite(m.at)});
+  st.upd=Date.now();purge();render();
+};
+
+function fetchNow(){if(N&&st.authed){N.fetchRecent()}}
+function show(w){$("gate").classList.toggle("hidden",w!=="gate");$("dash").classList.toggle("hidden",w!=="dash")}
+function doLock(fromNative){
+  st.authed=false;st.msgs=[];st.cur=null;st.showBody=false;st.showSrc=false;st.pv=false;st.cp=false;
+  $("oPv").checked=false;$("oCp").checked=false;
+  $("relayUrl").value="";$("relayPass").value="";st.remoteOn=false;$("relayMsg").textContent="";
+  $("detail").classList.add("hidden");$("settings").classList.add("hidden");
+  $("list").textContent="";
+  sent=false;$("tel").value="";$("code").value="";
+  if(N&&!fromNative){N.lock()}
+  readStatus();renderGate();show("gate");
+}
+
+/* ダッシュボード */
+function render(){
+  $("cnt").textContent=st.msgs.length;
+  $("upd").textContent=st.upd?hms(st.upd):"--:--:--";
+  var L=$("list");L.textContent="";
+  if(!st.msgs.length){L.appendChild(el("div","panel empty","直近30分に受信したSMSはありません。受信するとここに表示されます。"));return}
+  st.msgs.slice().sort(function(a,b){return b.at-a.at}).forEach(function(m){
+    var b=el("button","item panel");
+    b.appendChild(el("span","src",mask(m.src)));
+    var age=Math.floor((Date.now()-m.at)/60000);
+    b.appendChild(el("span","meta",hms(m.at)+"（"+(age<1?"1分未満":age+"分前")+"）"));
+    b.appendChild(el("span","pv",st.pv?m.body.replace(/\s+/g," "):"本文は非表示"));
+    var bar=el("div","bar"),i=el("i");i.style.width=Math.max(0,Math.min(100,left(m)/WIN*100))+"%";bar.appendChild(i);b.appendChild(bar);
+    b.onclick=function(){openDetail(m.id)};
+    L.appendChild(b);
+  });
+}
+/* 詳細 */
+function curMsg(){return st.msgs.find(function(m){return m.id===st.cur})}
+function openDetail(id){st.cur=id;st.showBody=false;st.showSrc=false;$("detail").classList.remove("hidden");renderDetail()}
+function renderDetail(){
+  var m=curMsg();if(!m){$("detail").classList.add("hidden");return}
+  $("dSrc").textContent=st.showSrc?m.src:mask(m.src);
+  $("dTime").textContent=hms(m.at);
+  $("dLeft").textContent=fmtLeft(left(m));
+  var b=$("dBody");b.textContent=st.showBody?m.body:"••••••••";b.className="body"+(st.showBody?"":" mask");
+  $("dTogBody").textContent=st.showBody?"本文を隠す":"本文を表示";
+  $("dTogSrc").textContent=st.showSrc?"送信元を隠す":"送信元を表示";
+  $("dCopy").classList.toggle("hidden",!(st.cp&&st.showBody));
+}
+$("dTogBody").onclick=function(){st.showBody=!st.showBody;renderDetail()};
+$("dTogSrc").onclick=function(){st.showSrc=!st.showSrc;renderDetail()};
+$("dClose").onclick=function(){st.cur=null;$("detail").classList.add("hidden")};
+$("dDismiss").onclick=function(){var m=curMsg();if(m){st.dismissed.add(m.id)}purge();st.cur=null;$("detail").classList.add("hidden");render()};
+$("dCopy").onclick=function(){var m=curMsg();if(m&&st.cp&&navigator.clipboard){navigator.clipboard.writeText(m.body).catch(function(){})}};
+
+/* 設定・診断 */
+function renderDiag(){
+  readStatus();
+  var d=$("diag");d.textContent="";
+  function r(a,b,c){var x=el("div","row");x.appendChild(el("span",null,a));x.appendChild(el("span",c,b));d.appendChild(x)}
+  r("Android連携",N?"接続済み":"なし",N?"ok":"ng");
+  r("SMS読み取り権限",st.perm?"許可済み":"未許可",st.perm?"ok":"wn");
+  r("表示件数",String(st.msgs.length));
+  r("最終更新",st.upd?hms(st.upd):"--");
+  r("表示ウィンドウ","30分");
+}
+$("bSet").onclick=function(){renderDiag();renderRelay();$("settings").classList.remove("hidden")};
+function renderRelay(){
+  $("remoteOffBox").classList.toggle("hidden",st.remoteOn);
+  $("remoteOnBox").classList.toggle("hidden",!st.remoteOn);
+}
+$("relayStart").onclick=function(){
+  var u=$("relayUrl").value.trim(),p=$("relayPass").value;
+  if(!N)return;
+  $("relayMsg").textContent="接続中…";
+  N.remoteConfigure(u,p);
+};
+$("relayStop").onclick=function(){if(N)N.remoteOff();st.remoteOn=false;$("relayPass").value="";renderRelay();$("relayMsg").textContent=""};
+window.__onRelay=function(ok,msg){
+  if(ok){st.remoteOn=true;$("relayMsg").textContent="";}
+  else{st.remoteOn=false;$("relayMsg").textContent=msg||"接続できませんでした。";}
+  renderRelay();
+};
+$("bLock").onclick=function(){doLock(false)};
+$("bRefresh").onclick=fetchNow;
+document.addEventListener("contextmenu",function(e){e.preventDefault()});
+
+/* 定期再評価（1秒）と復帰時の再評価 */
+setInterval(function(){
+  if(!st.authed)return;
+  var before=st.msgs.length;purge();
+  render();
+  if(st.cur)renderDetail();
+  if(before!==st.msgs.length&&st.cur&&!curMsg())$("detail").classList.add("hidden");
+},1000);
+setInterval(function(){if(st.authed&&!document.hidden)fetchNow()},15000);
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){return}
+  if(st.authed){purge();render();fetchNow()}
+});
+
+readStatus();
+if(N&&st.authed){show("dash");fetchNow()}else{renderGate()}
+})();
+</script>
+</body>
+</html>
